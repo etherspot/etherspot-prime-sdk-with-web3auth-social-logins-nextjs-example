@@ -5,10 +5,10 @@ import styled from 'styled-components';
 import { Web3AuthNoModal } from '@web3auth/no-modal';
 import { OpenloginAdapter } from '@web3auth/openlogin-adapter';
 import { CHAIN_NAMESPACES, WALLET_ADAPTERS } from '@web3auth/base';
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { Oval } from 'react-loader-spinner';
 import { LOGIN_PROVIDER } from '@toruslabs/base-controllers';
 import { PrimeSdk, Web3WalletProvider } from '@etherspot/prime-sdk';
-import { ethers } from 'ethers';
 
 const Wrapper = styled.form`
   display: block;
@@ -77,40 +77,98 @@ const ErrorMessage = styled.p`
   text-align: center;
 `;
 
+
+const chainConfig = {
+  chainNamespace: CHAIN_NAMESPACES.EIP155,
+  chainId: "0x13881",
+  rpcTarget: "https://rpc.ankr.com/polygon_mumbai",
+  displayName: "Polygon Mumbai Testnet",
+  blockExplorer: "https://mumbai.polygonscan.com/",
+  ticker: "MATIC",
+  tickerName: "Matic",
+};
+
+
 const web3auth = new Web3AuthNoModal({
-  chainConfig: {
-    chainNamespace: CHAIN_NAMESPACES.EIP155,
-    chainId: process.env.NEXT_PUBLIC_WEB3AUTH_CHAIN_ID_HEX,
-  },
-  clientId: process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID as string,
+  clientId: "BEglQSgt4cUWcj6SKRdu5QkOXTsePmMcusG5EAoyjyOYKlVRjIF1iCNnMOTfpzCiunHRrMui8TIwQPXdkQ8Yxuk",
+  chainConfig,
+  web3AuthNetwork: "testnet",
 });
 
-const openloginAdapter = new OpenloginAdapter();
+const privateKeyProvider = new EthereumPrivateKeyProvider({
+  config: { chainConfig },
+});
+
+const openloginAdapter = new OpenloginAdapter({
+  adapterSettings: {
+    whiteLabel: {
+      appName: "Etherspot Test",
+      appUrl: "https://web3auth.io",
+      logoLight: "vercel.svg",
+      logoDark: "vercel.svg",
+      defaultLanguage: "en", // en, de, ja, ko, zh, es, fr, pt, nl
+      mode: "auto", // whether to enable dark mode. defaultValue: false
+      theme: {
+          primary: "#768729",
+      },
+      useLogoLoader: false,
+  },
+    mfaSettings: {
+      deviceShareFactor: {
+        enable: true,
+        priority: 1,
+        mandatory: true,
+      },
+      backUpShareFactor: {
+        enable: true,
+        priority: 2,
+        mandatory: false,
+      },
+      socialBackupFactor: {
+        enable: true,
+        priority: 3,
+        mandatory: false,
+      },
+      passwordFactor: {
+        enable: true,
+        priority: 4,
+        mandatory: false,
+      },
+    },
+  },
+  loginSettings: {
+    mfaLevel: "mandatory",
+  },
+  privateKeyProvider,
+});
 
 web3auth.configureAdapter(openloginAdapter);
+
+
+
 
 const App = () => {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
   const [walletAddress, setWalletAddress] = React.useState('');
 
+  // TODO fix logout
   const logout = async () => {
     setWalletAddress('');
     try {
-      await web3auth.logout({ cleanup: true });
       web3auth.clearCache();
+      await web3auth.logout({ cleanup: true });
     } catch (e) {
       //
     }
   }
-
-  console.log();
 
   const loginWithProvider = async (loginProvider: string) => {
     if (isConnecting) return;
     setIsConnecting(true);
     setErrorMessage('');
     setWalletAddress('');
+
 
     if ((web3auth.status !== 'connected')) {
       await web3auth.init();
@@ -147,7 +205,7 @@ const App = () => {
 
     // @ts-ignore
     const etherspotPrimeSdk = new PrimeSdk(mappedProvider, {
-      chainId: ethers.BigNumber.from(process.env.NEXT_PUBLIC_WEB3AUTH_CHAIN_ID_HEX as string).toNumber()
+      chainId: 80001,
     });
     const address = await etherspotPrimeSdk.getCounterFactualAddress();
     if (!address) {
